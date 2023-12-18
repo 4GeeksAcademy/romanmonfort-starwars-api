@@ -71,5 +71,22 @@ class Vehicle(db.Model):
             "id": self.id,
             "name": self.name,
             "type": self.type,
-            "pilot": self.pilot.serialize(),
+        }
+
+class FavoritePlanet(db.Model):
+    __tablename__ = "favoriteplanet"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'), nullable=False)
+    user = db.relationship('User', backref='favorite_planets')
+    planet = db.relationship('Planet', backref='favorite_planets')
+
+    def __repr__(self):
+        return f'FavoritePlanet(id={self.id}, user_id={self.user_id}, planet_id={self.planet_id})'
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "planet_id": self.planet_id,
         }

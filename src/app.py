@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User,Planet,Character,Vehicle
+from models import db, User,Planet,Character,Vehicle,FavoritePlanet
 #from models import Person
 
 app = Flask(__name__)
@@ -66,6 +66,43 @@ def post_users():
     return jsonify({'msg': "Usuario creado exitosamente"}), 200
 
 
+@app.route('/user/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({'msg': 'Debes enviar información en el body'}), 400
+
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'msg': 'Usuario no encontrado'}), 404
+
+    if "email" in body:
+        user.email = body['email']
+    if "password" in body:
+        user.password = body['password']
+    if "is_active" in body:
+        user.is_active = body['is_active']
+
+    db.session.commit()
+
+    return jsonify({'msg': 'Usuario actualizado ', 'user': user.serialize()}), 200
+
+
+@app.route('/user/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'msg': 'Usuario no encontrado'}), 404
+
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({'msg': 'Usuario eliminado exitosamente'}), 200
+
+
 
 
 
@@ -101,6 +138,49 @@ def create_planet():
     db.session.commit()
 
     return jsonify({'msg': 'Planeta creado exitosamente', 'planet': new_planet.serialize()}), 200
+
+
+@app.route('/planet/<int:planet_id>', methods=['PUT'])
+def update_planet(planet_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({'msg': 'Debes enviar información en el body'}), 400
+
+    planet = Planet.query.get(planet_id)
+
+    if not planet:
+        return jsonify({'msg': 'Planeta no encontrado'}), 404
+
+    # Actualiza los campos si están presentes en el cuerpo de la solicitud
+    if "name" in body:
+        planet.name = body['name']
+    if "population" in body:
+        planet.population = body['population']
+
+    db.session.commit()
+
+    return jsonify({'msg': 'Planeta actualizado exitosamente', 'planet': planet.serialize()}), 200
+
+
+
+
+@app.route('/planet/<int:planet_id>', methods=['DELETE'])
+def delete_planet(planet_id):
+    planet = Planet.query.get(planet_id)
+
+    if not planet:
+        return jsonify({'msg': 'Planeta no encontrado'}), 404
+
+    db.session.delete(planet)
+    db.session.commit()
+
+    return jsonify({'msg': 'Planeta eliminado exitosamente'}), 200
+
+
+
+
+
 
 
 
@@ -146,6 +226,47 @@ def create_character():
 
     return jsonify({'msg': 'Personaje creado exitosamente', 'character': new_character.serialize()}), 201
 
+@app.route('/character/<int:character_id>', methods=['DELETE'])
+def delete_character(character_id):
+    character = Character.query.get(character_id)
+
+    if not character:
+        return jsonify({'msg': 'Personaje no encontrado'}), 404
+
+    db.session.delete(character)
+    db.session.commit()
+
+    return jsonify({'msg': 'Personaje eliminado exitosamente'}), 200
+
+@app.route('/character/<int:character_id>', methods=['PUT'])
+def update_character(character_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({'msg': 'Debes enviar información en el body'}), 400
+
+    character = Character.query.get(character_id)
+
+    if not character:
+        return jsonify({'msg': 'Personaje no encontrado'}), 404
+
+    # Actualiza los campos si están presentes en el cuerpo de la solicitud
+    if "name" in body:
+        character.name = body['name']
+    if "height" in body:
+        character.height = body['height']
+    if "mass" in body:
+        character.mass = body['mass']
+    if "planet_id" in body:
+        character.planet_id = body['planet_id']
+
+    db.session.commit()
+
+    return jsonify({'msg': 'Personaje actualizado exitosamente', 'character': character.serialize()}), 200
+
+
+
+
 
 
 
@@ -169,6 +290,8 @@ def get_vehicle(vehicle_id):
         return jsonify({'msg': "ok", 'result': serialized_vehicle}), 200
     else:
         return jsonify({'msg': "Vehicle not found", 'result': {}}), 404
+    
+
 
 @app.route('/vehicles', methods=['POST'])
 def create_vehicle():
@@ -186,6 +309,122 @@ def create_vehicle():
     db.session.commit()
 
     return jsonify({'msg': 'Vehículo creado exitosamente', 'vehicle': new_vehicle.serialize()}), 201
+
+
+
+@app.route('/vehicle/<int:vehicle_id>', methods=['PUT'])
+def update_vehicle(vehicle_id):
+    body = request.get_json(silent=True)
+
+    if body is None:
+        return jsonify({'msg': 'Debes enviar información en el body'}), 400
+
+    vehicle = Vehicle.query.get(vehicle_id)
+
+    if not vehicle:
+        return jsonify({'msg': 'Vehículo no encontrado'}), 404
+
+    # Actualiza los campos si están presentes en el cuerpo de la solicitud
+    if "name" in body:
+        vehicle.name = body['name']
+    if "type" in body:
+        vehicle.type = body['type']
+
+    db.session.commit()
+
+    return jsonify({'msg': 'Vehículo actualizado exitosamente', 'vehicle': vehicle.serialize()}), 200
+
+
+
+@app.route('/vehicle/<int:vehicle_id>', methods=['DELETE'])
+def delete_vehicle(vehicle_id):
+    vehicle = Vehicle.query.get(vehicle_id)
+
+    if not vehicle:
+        return jsonify({'msg': 'Vehículo no encontrado'}), 404
+
+    db.session.delete(vehicle)
+    db.session.commit()
+
+    return jsonify({'msg': 'Vehículo eliminado exitosamente'}), 200
+
+
+
+@app.route('/favplanets/user/<int:user_id>', methods=['GET'])
+def get_favplanets(user_id):
+    user = User.query.get(user_id)
+    if user is None:
+        return jsonify({'msg': f'El usuario con id {user_id} no existe'}), 404
+
+    favorite_planets = db.session.query(FavoritePlanet, Planet).join(Planet).filter(FavoritePlanet.user_id == user_id).all()
+    favorite_planets_serialize = []
+
+    for favorite_item, planet_item in favorite_planets:
+        favorite_planets_serialize.append({'favorite_planet': favorite_item.serialize(), 'planet': planet_item.serialize()})
+
+    return jsonify({'msg': 'ok', 'result': favorite_planets_serialize,'user': user.serialize()}), 200
+
+@app.route('/favplanets/user/<int:user_id>/add/<int:planet_id>', methods=['POST'])
+def add_favplanet(user_id, planet_id):
+    user = User.query.get(user_id)
+    planet = Planet.query.get(planet_id)
+
+    if user is None or planet is None:
+        return jsonify({'msg': 'El usuario o el planeta no existen'}), 404
+
+    new_favorite = FavoritePlanet(user_id=user_id, planet_id=planet_id)
+    db.session.add(new_favorite)
+    db.session.commit()
+
+    return jsonify({'msg': 'Favorito creado exitosamente'}), 201
+
+@app.route('/favplanets/user/<int:user_id>/remove/<int:planet_id>', methods=['DELETE'])
+def remove_favplanet(user_id, planet_id):
+    user = User.query.get(user_id)
+    planet = Planet.query.get(planet_id)
+
+    if user is None or planet is None:
+        return jsonify({'msg': 'El usuario o el planeta no existen'}), 404
+
+    favorite_to_remove = FavoritePlanet.query.filter_by(user_id=user_id, planet_id=planet_id).first()
+
+    if favorite_to_remove:
+        db.session.delete(favorite_to_remove)
+        db.session.commit()
+        return jsonify({'msg': 'Favorito eliminado exitosamente'}), 200
+    else:
+        return jsonify({'msg': 'El favorito no existe'}), 404
+
+@app.route('/favplanets/all', methods=['GET'])
+def get_all_favplanets():
+    all_favorites = db.session.query(FavoritePlanet, Planet, User).join(Planet).join(User).all()
+
+    all_favorites_serialize = []
+
+    for favorite_item, planet_item, user_item in all_favorites:
+        all_favorites_serialize.append({
+            'favorite_planet': favorite_item.serialize(),
+            'planet': planet_item.serialize(),
+            'user': user_item.serialize()
+        })
+
+    return jsonify({'msg': 'ok', 'result': all_favorites_serialize}), 200       
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # this only runs if `$ python src/app.py` is executed
