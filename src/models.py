@@ -73,20 +73,34 @@ class Vehicle(db.Model):
             "type": self.type,
         }
 
-class FavoritePlanet(db.Model):
-    __tablename__ = "favoriteplanet"
+class Favorite(db.Model):
+    __tablename__ = "favorite"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'), nullable=False)
-    user = db.relationship('User', backref='favorite_planets')
-    planet = db.relationship('Planet', backref='favorite_planets')
+    vehicles_id = db.Column(db.Integer, db.ForeignKey('vehicles.id'), nullable=True)
+    characters_id = db.Column(db.Integer, db.ForeignKey('characters.id'), nullable=True)
+    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'), nullable=True)
+    user = db.relationship('User', backref='favorite')
+    planet = db.relationship('Planet', backref='favorite')
+    Vehicle = db.relationship('Vehicle', backref='favorite')
+    Character = db.relationship('Character', backref='favorite')
 
     def __repr__(self):
-        return f'FavoritePlanet(id={self.id}, user_id={self.user_id}, planet_id={self.planet_id})'
+        return f'Favorite(id={self.id}, user_id={self.user_id}, planet_id={self.planet_id})'
 
     def serialize(self):
-        return {
+       data = {
             "id": self.id,
             "user_id": self.user_id,
-            "planet_id": self.planet_id,
-        }
+       }
+
+       if self.planet:
+           data["planet"] = self.planet.serialize()
+
+       if self.Vehicle:
+           data["vehicle"] = self.Vehicle.serialize()
+
+       if self.Character:
+           data["character"] = self.Character.serialize()
+
+       return data

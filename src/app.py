@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User,Planet,Character,Vehicle,FavoritePlanet
+from models import db, User,Planet,Character,Vehicle,Favorite
 #from models import Person
 
 app = Flask(__name__)
@@ -350,66 +350,67 @@ def delete_vehicle(vehicle_id):
 
 
 
-@app.route('/favplanets/user/<int:user_id>', methods=['GET'])
-def get_favplanets(user_id):
+@app.route('/favorites/user/<int:user_id>', methods=['GET'])
+def get_favorites(user_id):
     user = User.query.get(user_id)
     if user is None:
         return jsonify({'msg': f'El usuario con id {user_id} no existe'}), 404
 
-    favorite_planets = db.session.query(FavoritePlanet, Planet).join(Planet).filter(FavoritePlanet.user_id == user_id).all()
-    favorite_planets_serialize = []
+    favorites = Favorite.query.filter_by(user_id=user_id).all()
+    favorites_serialize = []
 
-    for favorite_item, planet_item in favorite_planets:
-        favorite_planets_serialize.append({'favorite_planet': favorite_item.serialize(), 'planet': planet_item.serialize()})
+    for favorite_item in favorites:
+        favorites_serialize.append({'favorite': favorite_item.serialize()})
 
-    return jsonify({'msg': 'ok', 'result': favorite_planets_serialize,'user': user.serialize()}), 200
+    return jsonify({'msg': 'ok', 'result': favorites_serialize, 'user': user.serialize()}), 200
 
-@app.route('/favplanets/user/<int:user_id>/add/<int:planet_id>', methods=['POST'])
-def add_favplanet(user_id, planet_id):
+@app.route('/favorites/user/<int:user_id>/add/<type>/<int:item_id>', methods=['POST'])
+def add_favorite(user_id, type, item_id):
     user = User.query.get(user_id)
-    planet = Planet.query.get(planet_id)
 
-    if user is None or planet is None:
-        return jsonify({'msg': 'El usuario o el planeta no existen'}), 404
+    if user is None:
+        return jsonify({'msg': 'El usuario no existe'}), 404
 
-    new_favorite = FavoritePlanet(user_id=user_id, planet_id=planet_id)
+    if type not in ['planet', 'vehicle', 'character']:
+        return jsonify({'msg': 'Tipo no válido'}), 400
+
+    new_favorite = Favorite(user_id=user_id)
+
+    if type == 'planet':
+        new_favorite.planet_id = item_id
+    elif type == 'vehicle':
+        new_favorite.vehicle_id = item_id
+    elif type == 'character':
+        new_favorite.character_id = item_id
+
     db.session.add(new_favorite)
     db.session.commit()
 
     return jsonify({'msg': 'Favorito creado exitosamente'}), 201
 
-@app.route('/favplanets/user/<int:user_id>/remove/<int:planet_id>', methods=['DELETE'])
-def remove_favplanet(user_id, planet_id):
+@app.route('/favorites/user/<int:user_id>/remove/<int:favorite_id>', methods=['DELETE'])
+def remove_favorite(user_id, favorite_id):
     user = User.query.get(user_id)
-    planet = Planet.query.get(planet_id)
+    favorite = Favorite.query.get(favorite_id)
 
-    if user is None or planet is None:
-        return jsonify({'msg': 'El usuario o el planeta no existen'}), 404
+    if user is None or favorite is None or favorite.user_id != user_id:
+        return jsonify({'msg': 'El usuario o el favorito no existen'}), 404
 
-    favorite_to_remove = FavoritePlanet.query.filter_by(user_id=user_id, planet_id=planet_id).first()
+    db.session.delete(favorite)
+    db.session.commit()
 
-    if favorite_to_remove:
-        db.session.delete(favorite_to_remove)
-        db.session.commit()
-        return jsonify({'msg': 'Favorito eliminado exitosamente'}), 200
-    else:
-        return jsonify({'msg': 'El favorito no existe'}), 404
+    return jsonify({'msg': 'Favorito eliminado exitosamente'}), 200
 
-@app.route('/favplanets/all', methods=['GET'])
-def get_all_favplanets():
-    all_favorites = db.session.query(FavoritePlanet, Planet, User).join(Planet).join(User).all()
+@app.route('/favorites/all', methods=['GET'])
+def get_all_favorites():
+    all_favorites = Favorite.query.all()
 
     all_favorites_serialize = []
 
-    for favorite_item, planet_item, user_item in all_favorites:
-        all_favorites_serialize.append({
-            'favorite_planet': favorite_item.serialize(),
-            'planet': planet_item.serialize(),
-            'user': user_item.serialize()
-        })
+    for favorite_item in all_favorites:
+        all_favorites_serialize.append({'favorite': favorite_item.serialize()})
 
-    return jsonify({'msg': 'ok', 'result': all_favorites_serialize}), 200       
-
+    return jsonify({'msg': 'ok', 'result': all_favorites_serialize}), 200
 
 
 
