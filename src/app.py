@@ -364,12 +364,20 @@ def get_favorites(user_id):
 
     return jsonify({'msg': 'ok', 'result': favorites_serialize, 'user': user.serialize()}), 200
 
-@app.route('/favorites/user/<int:user_id>/add/<type>/<int:item_id>', methods=['POST'])
-def add_favorite(user_id, type, item_id):
+@app.route('/favorites/user/<int:user_id>/add', methods=['POST'])
+def add_favorite(user_id):
     user = User.query.get(user_id)
 
     if user is None:
         return jsonify({'msg': 'El usuario no existe'}), 404
+
+    data = request.get_json()
+
+    if not data or 'type' not in data or 'item_id' not in data:
+        return jsonify({'msg': 'Datos no válidos en el cuerpo de la solicitud'}), 400
+
+    type = data['type']
+    item_id = data['item_id']
 
     if type not in ['planet', 'vehicle', 'character']:
         return jsonify({'msg': 'Tipo no válido'}), 400
@@ -388,9 +396,17 @@ def add_favorite(user_id, type, item_id):
 
     return jsonify({'msg': 'Favorito creado exitosamente'}), 201
 
-@app.route('/favorites/user/<int:user_id>/remove/<int:favorite_id>', methods=['DELETE'])
-def remove_favorite(user_id, favorite_id):
+
+@app.route('/favorites/user/<int:user_id>/remove', methods=['DELETE'])
+def remove_favorite(user_id):
     user = User.query.get(user_id)
+    
+    data = request.get_json()
+
+    if not data or 'favorite_id' not in data:
+        return jsonify({'msg': 'Datos no válidos en el cuerpo de la solicitud'}), 400
+
+    favorite_id = data['favorite_id']
     favorite = Favorite.query.get(favorite_id)
 
     if user is None or favorite is None or favorite.user_id != user_id:
